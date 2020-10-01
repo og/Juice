@@ -1,9 +1,17 @@
 package juice
 
 import (
+	"bytes"
 	"encoding/base64"
+	ogjson "github.com/og/json"
+	ge "github.com/og/x/error"
 	gtest "github.com/og/x/test"
+	gtime "github.com/og/x/time"
+	"mime/multipart"
+	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -11,13 +19,61 @@ type URLBase64 struct {
 	Value string
 }
 // 实现 juice.QueryValuer
-func (b *URLBase64) UnmarshalQuery(queryValue string) error {
-	valueBytes, err := base64.URLEncoding.DecodeString(queryValue)
+func (b *URLBase64) UnmarshalRequest(value string) error {
+	valueBytes, err := base64.URLEncoding.DecodeString(value)
 	if err != nil {return err}
 	b.Value = string(valueBytes)
 	return nil
 }
-func TestBindRequest(t *testing.T) {
+func TestBindRequestJSON(t *testing.T) {
+	as := gtest.NewAS(t)
+	type UserID string
+	type School struct {
+		School string `json:"school"`
+	}
+	type Job struct {
+		Title string `json:"jobTitle"`
+	}
+	type Req struct {
+		Name string `json:"name"`
+		Age int `json:"age"`
+		Elevation int `json:"elevation"`
+		Happy bool `json:"happy"`
+		UserID UserID `json:"userID"`
+		School
+		Job Job
+		Time ogjson.ChinaTime `json:"time"`
+	}
+	r := httptest.NewRequest(
+		"GET",
+		"http://github.com/og/juice",
+		strings.NewReader(`{
+		"name":"nimoc",
+		"age": "27",
+		"elevation": "-100",
+		"happy": true,
+		"userID": "a",
+		"school": "xjtu",
+		"job":{"jobTitle":"Programmer"},
+		"time": "2020-10-01 22:46:53"
+		}`),
+	)
+	r.Header.Set("Content-Type", "application/json")
+	req := Req{}
+	as.NoError(BindRequest(&req, r))
+	as.Equal(Req{
+		Name: "nimoc",
+		Age: 27,
+		Elevation: -100,
+		Happy: true,
+		UserID: UserID("a"),
+		School: School{School: "xjtu"},
+		Job: Job{Title: "Programmer"},
+		Time: ogjson.NewChinaTime(gtime.ParseChina(gtime.LayoutTime, "2020-10-01 22:46:53")),
+	}, req)
+}
+
+func TestBindRequestQuery(t *testing.T) {
 	as := gtest.NewAS(t)
 	type UserID string
 	type School struct {
@@ -49,11 +105,9 @@ func TestBindRequest(t *testing.T) {
 			"website=aHR0cHM6Ly9naXRodWIuY29tL25pbW9j",
 			nil,
 	)
-
-	r.URL.Query()
 	req := Req{}
 	as.NoError(BindRequest(&req, r))
-	as.Equal(req, Req{
+	as.Equal(Req{
 		Name: "nimoc",
 		Age: 27,
 		Elevation: -100,
@@ -62,5 +116,259 @@ func TestBindRequest(t *testing.T) {
 		School: School{School: "xjtu"},
 		Job: Job{Title: "Programmer"},
 		Website: URLBase64{Value: "https://github.com/nimoc"},
-	})
+	}, req)
+}
+func TestBindRequestWWWForm(t *testing.T) {
+	as := gtest.NewAS(t)
+	type UserID string
+	type School struct {
+		School string `form:"school"`
+	}
+	type Job struct {
+		Title string `form:"jobTitle"`
+	}
+	type Req struct {
+		Name string `form:"name"`
+		Age uint `form:"age"`
+		Elevation int `form:"elevation"`
+		Happy bool `form:"happy"`
+		UserID UserID `form:"userID"`
+		School
+		Job Job
+		Website URLBase64 `form:"website"`
+	}
+
+	r := httptest.NewRequest(
+		"POST",
+		"http://github.com/og/juice",
+		strings.NewReader("name=nimoc&"+
+				"age=27&"+
+				"elevation=-100&"+
+				"happy=true&"+
+				"userID=a&"+
+				"school=xjtu&"+
+				"jobTitle=Programmer&"+
+				"website=aHR0cHM6Ly9naXRodWIuY29tL25pbW9j"),
+	)
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req := Req{}
+	as.NoError(BindRequest(&req, r))
+	as.Equal(Req{
+		Name: "nimoc",
+		Age: 27,
+		Elevation: -100,
+		Happy: true,
+		UserID: UserID("a"),
+		School: School{School: "xjtu"},
+		Job: Job{Title: "Programmer"},
+		Website: URLBase64{Value: "https://github.com/nimoc"},
+	}, req)
+}
+func TestBindRequestFormData(t *testing.T) {
+	as := gtest.NewAS(t)
+	type UserID string
+	type School struct {
+		School string `form:"school"`
+	}
+	type Job struct {
+		Title string `form:"jobTitle"`
+	}
+	type Req struct {
+		Name string `form:"name"`
+		Age uint `form:"age"`
+		Elevation int `form:"elevation"`
+		Happy bool `form:"happy"`
+		UserID UserID `form:"userID"`
+		School
+		Job Job
+		Website URLBase64 `form:"website"`
+	}
+
+	var r *http.Request
+	{
+		values, err := url.ParseQuery("name=nimoc&"+
+			"age=27&"+
+			"elevation=-100&"+
+			"happy=true&"+
+			"userID=a&"+
+			"school=xjtu&"+
+			"jobTitle=Programmer&"+
+			"website=aHR0cHM6Ly9naXRodWIuY29tL25pbW9j") ; ge.Check(err)
+		bufferData := bytes.NewBuffer(nil)
+		formWriter := multipart.NewWriter(bufferData)
+		for key, values := range values {
+			ge.Check(formWriter.WriteField(key, values[0]))
+		}
+		ge.Check(formWriter.Close())
+		r = httptest.NewRequest(
+			"POST",
+			"http://github.com/og/juice",
+			bufferData,
+		)
+		r.Header.Add("Content-Type", formWriter.FormDataContentType())
+	}
+
+	req := Req{}
+	as.NoError(BindRequest(&req, r))
+	as.Equal(Req{
+		Name: "nimoc",
+		Age: 27,
+		Elevation: -100,
+		Happy: true,
+		UserID: UserID("a"),
+		School: School{School: "xjtu"},
+		Job: Job{Title: "Programmer"},
+		Website: URLBase64{Value: "https://github.com/nimoc"},
+	}, req)
+}
+
+func TestBindRequestQueryAndWWWForm(t *testing.T) {
+	as := gtest.NewAS(t)
+
+	type Req struct {
+		Name1 string `query:"name1"`
+		Age1 uint `query:"age1"`
+		Website1 URLBase64 `query:"website1"`
+		Name2 string `form:"name2"`
+		Age2 uint `form:"age2"`
+		Website2 URLBase64 `form:"website2"`
+	}
+
+	var r *http.Request
+	{
+
+		r = httptest.NewRequest(
+			"POST",
+			"http://github.com/og/juice" +
+				"?name1=nimoc1&"+
+				"age1=1&"+
+				"website1=aHR0cHM6Ly9naXRodWIuY29tL25pbW9j",
+			strings.NewReader(
+				"name2=nimoc2&"+
+				"age2=2&"+
+				"website2=Mg==",),
+		)
+		r.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	}
+	req := Req{}
+	as.NoError(BindRequest(&req, r))
+	as.Equal(Req{
+		Name1: "nimoc1",
+		Age1: 1,
+		Website1: URLBase64{Value: "https://github.com/nimoc"},
+		Name2: "nimoc2",
+		Age2: 2,
+		Website2: URLBase64{Value: "2"},
+		}, req)
+}
+
+
+func TestBindRequestQueryAndJSON(t *testing.T) {
+	as := gtest.NewAS(t)
+	type UserID string
+	type School struct {
+		School string `json:"school"`
+	}
+	type Job struct {
+		Title string `json:"jobTitle"`
+	}
+	type Req struct {
+		Name string `json:"name"`
+		Age int `json:"age"`
+		Elevation int `json:"elevation"`
+		Happy bool `json:"happy"`
+		UserID UserID `json:"userID"`
+		School
+		Job Job
+		Time ogjson.ChinaTime `json:"time"`
+		Demo string `query:"demo"`
+	}
+	r := httptest.NewRequest(
+		"GET",
+		"http://github.com/og/juice?demo=a",
+		strings.NewReader(`{
+		"name":"nimoc",
+		"age": "27",
+		"elevation": "-100",
+		"happy": true,
+		"userID": "a",
+		"school": "xjtu",
+		"job":{"jobTitle":"Programmer"},
+		"time": "2020-10-01 22:46:53"
+		}`),
+	)
+	r.Header.Set("Content-Type", "application/json")
+	req := Req{}
+	as.NoError(BindRequest(&req, r))
+	as.Equal(Req{
+		Name: "nimoc",
+		Age: 27,
+		Elevation: -100,
+		Happy: true,
+		UserID: UserID("a"),
+		School: School{School: "xjtu"},
+		Job: Job{Title: "Programmer"},
+		Time: ogjson.NewChinaTime(gtime.ParseChina(gtime.LayoutTime, "2020-10-01 22:46:53")),
+		Demo: "a",
+	}, req)
+}
+
+func TestBindRequestQueryAndFormData(t *testing.T) {
+	as := gtest.NewAS(t)
+	type UserID string
+	type School struct {
+		School string `form:"school"`
+	}
+	type Job struct {
+		Title string `form:"jobTitle"`
+	}
+	type Req struct {
+		Name string `form:"name"`
+		Age uint `form:"age"`
+		Elevation int `form:"elevation"`
+		Happy bool `form:"happy"`
+		UserID UserID `form:"userID"`
+		School
+		Job Job
+		Website URLBase64 `form:"website"`
+		Demo string `query:"demo"`
+	}
+
+	var r *http.Request
+	{
+		values, err := url.ParseQuery("name=nimoc&"+
+			"age=27&"+
+			"elevation=-100&"+
+			"happy=true&"+
+			"userID=a&"+
+			"school=xjtu&"+
+			"jobTitle=Programmer&"+
+			"website=aHR0cHM6Ly9naXRodWIuY29tL25pbW9j") ; ge.Check(err)
+		bufferData := bytes.NewBuffer(nil)
+		formWriter := multipart.NewWriter(bufferData)
+		for key, values := range values {
+			ge.Check(formWriter.WriteField(key, values[0]))
+		}
+		ge.Check(formWriter.Close())
+		r = httptest.NewRequest(
+			"POST",
+			"http://github.com/og/juice?demo=1",
+			bufferData,
+		)
+		r.Header.Add("Content-Type", formWriter.FormDataContentType())
+	}
+
+	req := Req{}
+	as.NoError(BindRequest(&req, r))
+	as.Equal(Req{
+		Name: "nimoc",
+		Age: 27,
+		Elevation: -100,
+		Happy: true,
+		UserID: UserID("a"),
+		School: School{School: "xjtu"},
+		Job: Job{Title: "Programmer"},
+		Website: URLBase64{Value: "https://github.com/nimoc"},
+		Demo: "1",
+	}, req)
 }
