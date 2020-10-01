@@ -5,12 +5,7 @@ import (
 	"net/http"
 )
 
-type Method string
-func (m Method) String() string {
-	return string(m)
-}
-const GET Method = "GET"
-const POST Method = "POST"
+
 type Action func(c *Context) (reject error)
 
 func (serve *Serve) Action(method Method,path string,  action Action) {
@@ -20,6 +15,12 @@ func (serve *Serve) Action(method Method,path string,  action Action) {
 func coreAction(serve *Serve, router *mux.Router, method Method,path string,  action Action) {
 	router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		c := NewContext(w, r, serve)
+		defer func() {
+			r := recover()
+			if r  != nil {
+				c.CheckError(r) ; return
+			}
+		}()
 		err := action(c)
 		if err != nil {
 			c.CheckError(err) ; return

@@ -9,17 +9,13 @@ import (
 	"reflect"
 	"strings"
 )
-type RequestValuer interface {
-	UnmarshalRequest(value string) error
-}
-var requestValueType = reflect.TypeOf((*RequestValuer)(nil)).Elem()
+
 
 
 type bindRequestEachCounter struct {
 	QueryCount uint
 }
-const queryTag = "query"
-const formTag = "form"
+
 func BindRequest(ptr interface{}, r *http.Request) error {
 	contentType := r.Header.Get("Content-Type")
 	query := r.URL.Query()
@@ -84,8 +80,8 @@ func parserField(unresolvedCount *int, key string, get func(key string) string, 
 		value := get(key)
 		if value == "" { return nil }
 		/* 转换赋值 */ {
-			if reflect.PtrTo(rType).Implements(requestValueType) {
-				err := rValue.Addr().Interface().(RequestValuer).UnmarshalRequest(value)
+			if reflect.PtrTo(rType).Implements(requestMarshalerType) {
+				err := rValue.Addr().Interface().(RequestMarshaler).MarshalRequest(value)
 				if err != nil { return err }
 				*unresolvedCount--
 			} else {

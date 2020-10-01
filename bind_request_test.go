@@ -19,7 +19,7 @@ type URLBase64 struct {
 	Value string
 }
 // 实现 juice.QueryValuer
-func (b *URLBase64) UnmarshalRequest(value string) error {
+func (b *URLBase64) MarshalRequest(value string) error {
 	valueBytes, err := base64.URLEncoding.DecodeString(value)
 	if err != nil {return err}
 	b.Value = string(valueBytes)

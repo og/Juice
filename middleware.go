@@ -2,7 +2,6 @@ package juice
 
 import (
 	"github.com/gorilla/mux"
-	"log"
 	"net/http"
 )
 
@@ -14,8 +13,13 @@ func (serve *Serve) Use(middleware Middleware) {
 func middlewareUse(serve *Serve, router *mux.Router, middleware Middleware) {
 	router.Use(func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log.Print(r.Method, " ", r.URL.RawPath)
 			c := NewContext(w,r, serve)
+			defer func() {
+				r := recover()
+				if r  != nil {
+					c.CheckError(r) ; return
+				}
+			}()
 			mwErr := middleware(c, func() error {
 				handler.ServeHTTP(w, r)
 				return nil
