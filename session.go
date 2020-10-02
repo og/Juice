@@ -39,12 +39,15 @@ func (s Session) GetString(key string) (value string, has bool, err error) {
 }
 func (s Session) SetString(key string, value string) (err error) {
 	sess, err := s.store.Get(s.c.R, s.name)
+	if sess == nil {
+		panic(errors.New("session is nil"))
+	}
 	sess.Values[key] = value
 	err = sess.Save(s.c.R, s.c.W) ; if err != nil {return}
 	return nil
 }
 
 
-func (c *Context) Session() Session {
-	return NewSession("juice_session", c.serve.session, c)
+func (c *Context) Session(sessionName string, sessionStore sessions.Store) Session {
+	return NewSession(sessionName, sessionStore, c)
 }

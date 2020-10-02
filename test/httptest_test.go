@@ -1,9 +1,10 @@
-package juice
+package juicetest_test
 
 import (
 	ogjson "github.com/og/json"
+	"github.com/og/juice"
+	juicetest "github.com/og/juice/test"
 	gconv "github.com/og/x/conv"
-	ge "github.com/og/x/error"
 	gtest "github.com/og/x/test"
 	"log"
 	"net/http"
@@ -34,61 +35,61 @@ func setCookieCount(w http.ResponseWriter, value int) {
 		Value: gconv.IntString(value),
 	})
 }
-func StartServe(addr string) {
-	serve := NewServe(ServeOption{
-		OnCatchError: func(c *Context, errInterface interface{}) error {
+func NewServe() *juice.Serve {
+	serve := juice.NewServe(juice.ServeOption{
+		OnCatchError: func(c *juice.Context, errInterface interface{}) error {
 			log.Print(errInterface)
 			return nil
 		},
 	})
-	serve.Action(POST, "/", func(c *Context) (reject error) {
+	serve.Action(juice.POST, "/", func(c *juice.Context) (reject error) {
 		req := ReqHome{}
 		reject = c.BindRequest(&req) ; if reject != nil {return}
 		reply := ReplyHome{}
 		reply.IDNameAge  = req.ID + ":" + req.Name + ":" + gconv.IntString(req.Age)
 		return c.Bytes(ogjson.Bytes(reply))
 	})
-	serve.Action(POST, "/cookie", func(c *Context) (reject error) {
+	serve.Action(juice.POST, "/cookie", func(c *juice.Context) (reject error) {
 		count , reject := getCookieCount(c.R) ; if reject != nil {return}
 		newCount := count + 1
 		setCookieCount(c.W, newCount)
 		return c.Bytes([]byte("request:" + gconv.IntString(count) + " response:"+ gconv.IntString(newCount)))
 	})
-	ge.Check(serve.Listen(addr))
+	return serve
 }
 func TestTest(t *testing.T) {
 	as := gtest.NewAS(t)
-	addr := ":1111"
-	go StartServe(addr)
-	ht := NewHttpTest(addr)
+	jtest := juicetest.NewTest(t, NewServe())
+	resp := jtest.RequestJSON(juice.POST, "/", ReqHome{
+		ID:   "a",
+		Name: "b",
+		Age:  3,
+	})
+	resp.ExpectJSON(200, ReplyHome{IDNameAge: "a:b:3",})
 	{
-		resp := ht.RequestJSON(POST, "/", ReqHome{
+		resp := jtest.RequestJSON(juice.POST, "/", ReqHome{
 			ID: "a",
 			Name: "b",
 			Age: 3,
 		})
 		// resp.String resp.Bytes resp.BindJSON resp.ExpectJSON 任选其一即可
-		as.Equal(resp.String(), `{"idNameAge":"a:b:3"}`)
-		{
-			reply := ReplyHome{}
-			resp.BindJSON(&reply)
-			as.Equal(reply, ReplyHome{
-				IDNameAge: "a:b:3",
-			})
-		}
-		resp.ExpectJSON(t, ReplyHome{IDNameAge: "a:b:3",})
-	}
-	{
-		resp := ht.RequestJSON(
-			POST, "/cookie", nil,
-		)
-		as.Equal(resp.String(), "request:0 response:1")
-	}
-	{
-		resp := ht.RequestJSON(
-			POST, "/cookie", nil,
-		)
-		as.Equal(resp.String(), "request:1 response:2")
-	}
+		as.Equal(resp.String(200), `{"idNameAge":"a:b:3"}`)
 
+		reply := ReplyHome{}
+		resp.BindJSON(200, &reply)
+		as.Equal(reply, ReplyHome{
+			IDNameAge: "a:b:3",
+		})
+		resp.ExpectJSON(200, ReplyHome{IDNameAge: "a:b:3",})
+	}
+	{
+		jtest.RequestJSON(
+			juice.POST, "/cookie", nil,
+		).ExpectString(200, "request:0 response:1")
+	}
+	{
+		jtest.RequestJSON(
+			juice.POST, "/cookie", nil,
+		).ExpectString(200, "request:1 response:2")
+	}
 }
