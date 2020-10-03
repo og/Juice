@@ -20,22 +20,23 @@ type Response struct {
 	HttpResponse *http.Response
 	as *gtest.AS
 }
-func (resp *Response) Bytes(code int) []byte {
+func (resp *Response) Bytes(statusCode int) []byte {
+	resp.as.Equal(statusCode, resp.HttpResponse.StatusCode)
 	b, err := ioutil.ReadAll(resp.recorder.Body) ; ge.Check(err)
 	resp.recorder.Body = bytes.NewBuffer(b)
 	return b
 }
-func (resp *Response) String(code int) string {
-	return string(resp.Bytes(code))
+func (resp *Response) String(statusCode int) string {
+	return string(resp.Bytes(statusCode))
 }
-func (resp *Response) ExpectString(code int, s string) {
-	resp.as.Equal(s, string(resp.Bytes(code)))
+func (resp *Response) ExpectString(statusCode int, s string) {
+	resp.as.Equal(s, string(resp.Bytes(statusCode)))
 }
-func (resp *Response) BindJSON(code int, v interface{})  {
-	ogjson.ParseBytes(resp.Bytes(code), v)
+func (resp *Response) BindJSON(statusCode int, v interface{})  {
+	ogjson.ParseBytes(resp.Bytes(statusCode), v)
 }
-func (resp *Response) ExpectJSON(code int, reply interface{}) {
-	resp.as.Equal(ogjson.String(reply), resp.String(code))
+func (resp *Response) ExpectJSON(statusCode int, reply interface{}) {
+	resp.as.Equal(ogjson.String(reply), resp.String(statusCode))
 
 }
 type Test struct {
