@@ -2,7 +2,10 @@ package main
 
 import (
 	"github.com/michaeljs1990/sqlitestore"
+	ogjson "github.com/og/json"
 	"github.com/og/juice"
+	vd "github.com/og/juice/validator"
+	ge "github.com/og/x/error"
 	"log"
 )
 
@@ -20,7 +23,22 @@ func init() {
 		panic(err)
 	}
 }
-
+type ReqHome struct {
+	Name string `query:"name"` // query json form
+	Age uint `query:"age"`
+}
+func (v ReqHome) VD(r *vd.Rule) {
+	r.String(v.Name, vd.StringSpec{
+		Name:              "姓名",
+		MinRuneLen: 2,
+		MaxRuneLen:10,
+	})
+	r.Uint(v.Age, vd.IntSpec{
+		Name:           "年龄",
+		Min: vd.Int(18),
+		Max: vd.Int(80),
+	})
+}
 func main() {
 	serve := juice.NewServe(juice.ServeOption{
 		Session: sessionStore,
@@ -29,7 +47,12 @@ func main() {
 			switch errInterface.(type) {
 			case error:
 				err := errInterface.(error)
-				return c.Bytes([]byte(err.Error()))
+				reject, isReject := ge.ErrorToReject(err)
+				if isReject {
+					return c.Bytes(ogjson.Bytes(reject.Response))
+				} else {
+					return c.Bytes([]byte(err.Error()))
+				}
 			default:
 				return c.Bytes([]byte("server error"))
 			}
@@ -42,15 +65,16 @@ func main() {
 	serve.Use(requestLogMiddleware)
 	serve.Action(juice.GET, "/", func(c *juice.Context) (reject error) {
 		/* 绑定请求 */{
-			req := struct {
-				Name string `json:"name"`
-				Age uint `json:"age"`
-			}{}
+			req := ReqHome{}
 			reject = c.BindRequest(&req) ;if reject != nil {return}
+			report := vd.NewCN().Check(req)
+			if report.Fail {
+				return ge.NewReject(report.Message, false)
+			}
 		}
 		/* 读写 session */{
 			sess := c.Session("juice_session", sessionStore)
-			// sess.SetString("time", time.Now().String())
+			// err := sess.SetString("time", time.Now().String()) ; if err !=nil { return err}
 			var timeStr string
 			var hasTime bool
 			timeStr, hasTime, reject = sess.GetString("time") ; if reject != nil {return}
