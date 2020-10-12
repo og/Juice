@@ -49,10 +49,12 @@ func main() {
 			reject = c.BindRequest(&req) ;if reject != nil {return}
 		}
 		/* 读写 session */{
-			sess := c.Session()
+			sess := c.Session("juice_session", sessionStore)
 			// sess.SetString("time", time.Now().String())
 			var timeStr string
-			timeStr, reject = sess.GetString("time") ; if reject != nil {return}
+			var hasTime bool
+			timeStr, hasTime, reject = sess.GetString("time") ; if reject != nil {return}
+			if !hasTime {timeStr = ""}
 			return c.Bytes([]byte("time:" + timeStr))
 		}
 	})

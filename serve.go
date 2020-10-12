@@ -21,6 +21,12 @@ func (serve *Serve) Listen(addr string) error {
 		log.Print("Listen http://127.0.0.1" +addr)
 		return http.ListenAndServe(addr, serve.router)
 }
+func (serve *Serve) ListenTLS(addr string, certFile string, keyFile string) error {
+	serve.addr = addr
+	log.Print("Listen http://127.0.0.1" +addr)
+	return http.ListenAndServeTLS(addr, certFile, keyFile, serve.router)
+}
+
 type ServeOption struct {
 	Session SessionStore
 	OnCatchError func(c *Context, errInterface interface{}) error
