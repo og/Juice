@@ -27,6 +27,7 @@ type ReqHome struct {
 	Name string `query:"name"` // query json form
 	Age uint `query:"age"`
 }
+
 func (v ReqHome) VD(r *vd.Rule) {
 	r.String(v.Name, vd.StringSpec{
 		Name:              "姓名",
@@ -51,10 +52,10 @@ func main() {
 				if isReject {
 					return c.Bytes(ogjson.Bytes(reject.Response))
 				} else {
-					return c.Bytes([]byte(err.Error()))
+					return c.Bytes([]byte("server error!"))
 				}
 			default:
-				return c.Bytes([]byte("server error"))
+				return c.Bytes([]byte("server error."))
 			}
 		},
 	})
@@ -73,7 +74,7 @@ func main() {
 			}
 		}
 		/* 读写 session */{
-			sess := c.Session("juice_session", sessionStore)
+			sess := c.Session("juice_session")
 			// err := sess.SetString("time", time.Now().String()) ; if err !=nil { return err}
 			var timeStr string
 			var hasTime bool
