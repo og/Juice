@@ -48,6 +48,6 @@ func (s Session) SetString(key string, value string) (err error) {
 }
 
 
-func (c *Context) Session(sessionName string) Session {
-	return NewSession(sessionName, c.serve.session, c)
+func (c *Context) Session(sessionName string, sessionStore SessionStore) Session {
+	return NewSession(sessionName, sessionStore, c)
 }

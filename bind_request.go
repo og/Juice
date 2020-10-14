@@ -1,6 +1,7 @@
 package juice
 
 import (
+	"github.com/gorilla/mux"
 	ogjson "github.com/og/json"
 	gconv "github.com/og/x/conv"
 	greflect "github.com/og/x/reflect"
@@ -20,9 +21,17 @@ func BindRequest(ptr interface{}, r *http.Request) error {
 	contentType := r.Header.Get("Content-Type")
 	query := r.URL.Query()
 	queryCount := len(query)
+	param := mux.Vars(r)
+	paramCount := len(param)
+	paramGet := func(key string)  string {
+		return param[key]
+	}
 	var formCount int
-	// 后续代码会重新定义 formGet
+	// 下面的代码会重新赋值 formGet
 	var formGet = func(key string)  string {return ""}
+	bindingIsOver := func() bool {
+		return formCount == 0 && queryCount == 0 && paramCount == 0
+	}
 	switch {
 	case strings.Contains(contentType, "application/x-www-form-urlencoded"):
 		err := r.ParseForm()
@@ -49,12 +58,18 @@ func BindRequest(ptr interface{}, r *http.Request) error {
 		}
 	default:
 	}
-	if formCount == 0 && queryCount == 0 {
+	if bindingIsOver() {
 		return nil
 	}
 	return greflect.DeepEach(ptr, func(rValue reflect.Value, rType reflect.Type, field reflect.StructField) (op greflect.EachOperator) {
-		if formCount == 0 && queryCount == 0 {
+		if bindingIsOver() {
 			return op.Break()
+		}
+		/* parse param */ {
+			err := parserField(&paramCount, field.Tag.Get(paramTag), paramGet, rValue, rType)
+			if err != nil {
+				return op.Error(err)
+			}
 		}
 		/* parse query */ {
 			err := parserField(&queryCount, field.Tag.Get(queryTag), query.Get, rValue, rType)

@@ -40,9 +40,11 @@ func (v ReqHome) VD(r *vd.Rule) {
 		Max: vd.Int(80),
 	})
 }
+type ReqUserDetail struct {
+	ID string `param:"id"`
+}
 func main() {
 	serve := juice.NewServe(juice.ServeOption{
-		Session: sessionStore,
 		OnCatchError: func(c *juice.Context, errInterface interface{}) error {
 			log.Print(errInterface)
 			switch errInterface.(type) {
@@ -60,11 +62,13 @@ func main() {
 		},
 	})
 	requestLogMiddleware := func(c *juice.Context, next juice.Next) error {
-		log.Print(c.R.Method, " ", c.R.URL)
-		return next()
+		log.Print("Request:", c.R.Method, " ", c.R.URL)
+		err := next() ; if err != nil {panic(err)}
+		log.Print("Response:", c.R.Method, " ", c.R.URL)
+		return nil
 	}
 	serve.Use(requestLogMiddleware)
-	serve.Action(juice.GET, "/", func(c *juice.Context) (reject error) {
+	serve.HandleFunc(juice.GET, "/", func(c *juice.Context) (reject error) {
 		/* 绑定请求 */{
 			req := ReqHome{}
 			reject = c.BindRequest(&req) ;if reject != nil {return}
@@ -74,7 +78,7 @@ func main() {
 			}
 		}
 		/* 读写 session */{
-			sess := c.Session("juice_session")
+			sess := c.Session("juice_session", sessionStore)
 			// err := sess.SetString("time", time.Now().String()) ; if err !=nil { return err}
 			var timeStr string
 			var hasTime bool
@@ -82,6 +86,12 @@ func main() {
 			if !hasTime {timeStr = ""}
 			return c.Bytes([]byte("time:" + timeStr))
 		}
+	})
+	serve.HandleFunc(juice.GET,"/user/{id}", func(c *juice.Context) (reject error) {
+		req := ReqUserDetail{}
+		reject = c.BindRequest(&req) ; if reject != nil {return}
+		id, reject := c.Param("id") ; if reject != nil {return}
+		return c.Bytes([]byte("BindRequestID:" + req.ID + " ParamID:" + id))
 	})
 	{
 		g := serve.Group()
@@ -92,7 +102,7 @@ func main() {
 			}
 			return next()
 		})
-		g.Action(juice.GET, "/user", func(c *juice.Context) error {
+		g.HandleFunc(juice.GET, "/user", func(c *juice.Context) error {
 			return c.Bytes([]byte("some data"))
 		})
 	}

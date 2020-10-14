@@ -1,7 +1,9 @@
 package juice
 
 import (
+	"github.com/gorilla/mux"
 	ogjson "github.com/og/json"
+	"github.com/pkg/errors"
 	"net/http"
 )
 
@@ -9,6 +11,8 @@ type Context struct {
 	W http.ResponseWriter
 	R *http.Request
 	serve *Serve
+	resolvedParam bool
+	param map[string]string
 }
 func NewContext (w http.ResponseWriter, r *http.Request, serve *Serve) *Context {
 	return &Context{
@@ -16,6 +20,19 @@ func NewContext (w http.ResponseWriter, r *http.Request, serve *Serve) *Context 
 		R: r,
 		serve: serve,
 	}
+}
+func (c *Context) Param(name string) (param string, err error) {
+	data := map[string]string{}
+	if c.resolvedParam {
+		data = c.param
+	} else {
+		data = mux.Vars(c.R)
+	}
+	param, has := data[name]
+	if !has {
+		return "", errors.New(`not found param (` + name + `)`)
+	}
+	return param, nil
 }
 func (c *Context) Bytes(b []byte) error {
 	_, err := c.W.Write(b)

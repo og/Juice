@@ -42,14 +42,14 @@ func NewServe() *juice.Serve {
 			return nil
 		},
 	})
-	serve.Action(juice.POST, "/", func(c *juice.Context) (reject error) {
+	serve.HandleFunc(juice.POST, "/", func(c *juice.Context) (reject error) {
 		req := ReqHome{}
 		reject = c.BindRequest(&req) ; if reject != nil {return}
 		reply := ReplyHome{}
 		reply.IDNameAge  = req.ID + ":" + req.Name + ":" + gconv.IntString(req.Age)
 		return c.Bytes(ogjson.Bytes(reply))
 	})
-	serve.Action(juice.POST, "/cookie", func(c *juice.Context) (reject error) {
+	serve.HandleFunc(juice.POST, "/cookie", func(c *juice.Context) (reject error) {
 		count , reject := getCookieCount(c.R) ; if reject != nil {return}
 		newCount := count + 1
 		setCookieCount(c.W, newCount)
