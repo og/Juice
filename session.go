@@ -46,6 +46,15 @@ func (s Session) SetString(key string, value string) (err error) {
 	err = sess.Save(s.c.R, s.c.W) ; if err != nil {return}
 	return nil
 }
+func (s Session) DelString(key string) (err error) {
+	sess, err := s.store.Get(s.c.R, s.name)
+	if sess == nil {
+		panic(errors.New("session is nil"))
+	}
+	delete(sess.Values, key)
+	err = sess.Save(s.c.R, s.c.W) ; if err != nil {return}
+	return nil
+}
 
 
 func (c *Context) Session(sessionName string, sessionStore SessionStore) Session {

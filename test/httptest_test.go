@@ -1,6 +1,8 @@
 package juicetest_test
 
 import (
+	"fmt"
+	"github.com/michaeljs1990/sqlitestore"
 	ogjson "github.com/og/json"
 	"github.com/og/juice"
 	juicetest "github.com/og/juice/test"
@@ -10,6 +12,22 @@ import (
 	"net/http"
 	"testing"
 )
+
+var sessionStore *sqlitestore.SqliteStore
+func init() {
+	var err error
+	sessionStore, err = sqlitestore.NewSqliteStore(
+		"./test/session_sqllite",
+		"sessions",
+		"/",
+		3600*24,
+		[]byte("production environment must write secretKey"),
+	)
+	if err != nil {
+		panic(err)
+	}
+}
+
 type ReqHome struct {
 	ID string `json:"id"`
 	Name string `json:"name"`
@@ -55,6 +73,16 @@ func NewServe() *juice.Serve {
 		setCookieCount(c.W, newCount)
 		return c.Bytes([]byte("request:" + gconv.IntString(count) + " response:"+ gconv.IntString(newCount)))
 	})
+	serve.HandleFunc(juice.GET, "/session_set", func(c *juice.Context) (reject error) {
+		return c.Session("juice_session", sessionStore).SetString("userID", "a")
+	})
+	serve.HandleFunc(juice.GET, "/session_get", func(c *juice.Context) (reject error) {
+		userID, hasUserID, reject := c.Session("juice_session", sessionStore).GetString("userID") ; if reject != nil {return}
+		return c.Bytes([]byte(fmt.Sprintf("%s,%v",userID,hasUserID)))
+	})
+	serve.HandleFunc(juice.GET, "/session_del", func(c *juice.Context) (reject error) {
+		return c.Session("juice_session", sessionStore).DelString("userID")
+	})
 	return serve
 }
 func TestTest(t *testing.T) {
@@ -91,5 +119,25 @@ func TestTest(t *testing.T) {
 		jtest.RequestJSON(
 			juice.POST, "/cookie", nil,
 		).ExpectString(200, "request:1 response:2")
+	}
+	{
+		resp := jtest.RequestJSON(juice.GET, "/session_get", nil)
+		resp.ExpectString(200, ",false")
+	}
+	{
+		resp := jtest.RequestJSON(juice.GET, "/session_set", nil)
+		resp.ExpectString(200,"")
+	}
+	{
+		resp := jtest.RequestJSON(juice.GET, "/session_get", nil)
+		resp.ExpectString(200, "a,true")
+	}
+	{
+		resp := jtest.RequestJSON(juice.GET, "/session_del", nil)
+		resp.ExpectString(200,"")
+	}
+	{
+		resp := jtest.RequestJSON(juice.GET, "/session_get", nil)
+		resp.ExpectString(200, ",false")
 	}
 }

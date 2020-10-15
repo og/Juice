@@ -4,3 +4,4 @@ example/news
 .DS_Store
 example/news_demo
 test/session_sqllite
+test/test/session_sqllite
