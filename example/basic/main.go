@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/michaeljs1990/sqlitestore"
 	ogjson "github.com/og/json"
 	"github.com/og/juice"
@@ -8,6 +9,10 @@ import (
 	ge "github.com/og/x/error"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 var sessionStore *sqlitestore.SqliteStore
@@ -70,6 +75,7 @@ func main() {
 	}
 	router.Use(requestLogMiddleware)
 	router.HandleFunc(juice.GET, "/", func(c *juice.Context) (reject error) {
+		time.Sleep(6*time.Second)
 		/* 绑定请求 */{
 			req := ReqHome{}
 			reject = c.BindRequest(&req) ;if reject != nil {return}
@@ -111,8 +117,23 @@ func main() {
 		Addr: ":1219",
 		Handler: router,
 	}
-	err := serve.ListenAndServe()
-	if err != nil {
-		panic(err)
+	go func(){
+		log.Print("Listen http://127.0.0.1" + serve.Addr)
+		err := serve.ListenAndServe()
+		if err != nil {
+			log.Print(err)
+		}
+	}()
+	exit := make(chan os.Signal)
+	signal.Notify(exit, syscall.SIGINT, syscall.SIGTERM)
+	<-exit
+	log.Print("Shuting down server...")
+	if err := serve.Shutdown(context.Background()); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
 	}
+	log.Println("Server exiting")
+	go func() {
+		<-exit
+	}()
+
 }

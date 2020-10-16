@@ -5,3 +5,5 @@ example/news
 example/news_demo
 test/session_sqllite
 test/test/session_sqllite
+example/basic/test/session_sqllite
+example/basic/main
