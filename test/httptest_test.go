@@ -53,41 +53,41 @@ func setCookieCount(w http.ResponseWriter, value int) {
 		Value: gconv.IntString(value),
 	})
 }
-func NewServe() *juice.Serve {
-	serve := juice.NewServe(juice.ServeOption{
+func NewRouter() *juice.Router {
+	router := juice.NewRouter(juice.RouterOption{
 		OnCatchError: func(c *juice.Context, errInterface interface{}) error {
 			log.Print(errInterface)
 			return nil
 		},
 	})
-	serve.HandleFunc(juice.POST, "/", func(c *juice.Context) (reject error) {
+	router.HandleFunc(juice.POST, "/", func(c *juice.Context) (reject error) {
 		req := ReqHome{}
 		reject = c.BindRequest(&req) ; if reject != nil {return}
 		reply := ReplyHome{}
 		reply.IDNameAge  = req.ID + ":" + req.Name + ":" + gconv.IntString(req.Age)
 		return c.Bytes(ogjson.Bytes(reply))
 	})
-	serve.HandleFunc(juice.POST, "/cookie", func(c *juice.Context) (reject error) {
+	router.HandleFunc(juice.POST, "/cookie", func(c *juice.Context) (reject error) {
 		count , reject := getCookieCount(c.R) ; if reject != nil {return}
 		newCount := count + 1
 		setCookieCount(c.W, newCount)
 		return c.Bytes([]byte("request:" + gconv.IntString(count) + " response:"+ gconv.IntString(newCount)))
 	})
-	serve.HandleFunc(juice.GET, "/session_set", func(c *juice.Context) (reject error) {
+	router.HandleFunc(juice.GET, "/session_set", func(c *juice.Context) (reject error) {
 		return c.Session("juice_session", sessionStore).SetString("userID", "a")
 	})
-	serve.HandleFunc(juice.GET, "/session_get", func(c *juice.Context) (reject error) {
+	router.HandleFunc(juice.GET, "/session_get", func(c *juice.Context) (reject error) {
 		userID, hasUserID, reject := c.Session("juice_session", sessionStore).GetString("userID") ; if reject != nil {return}
 		return c.Bytes([]byte(fmt.Sprintf("%s,%v",userID,hasUserID)))
 	})
-	serve.HandleFunc(juice.GET, "/session_del", func(c *juice.Context) (reject error) {
+	router.HandleFunc(juice.GET, "/session_del", func(c *juice.Context) (reject error) {
 		return c.Session("juice_session", sessionStore).DelString("userID")
 	})
-	return serve
+	return router
 }
 func TestTest(t *testing.T) {
 	as := gtest.NewAS(t)
-	jtest := juicetest.NewTest(t, NewServe())
+	jtest := juicetest.NewTest(t, NewRouter())
 	resp := jtest.RequestJSON(juice.POST, "/", ReqHome{
 		ID:   "a",
 		Name: "b",

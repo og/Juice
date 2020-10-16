@@ -3,11 +3,11 @@ package juice
 import "github.com/gorilla/mux"
 
 type Group struct {
-	serve *Serve
+	serve *Router
 	router *mux.Router
 }
 
-func (serve *Serve) Group() Group {
+func (serve *Router) Group() Group {
 	return Group{
 		serve: serve,
 		router: serve.router.PathPrefix("").Subrouter(),

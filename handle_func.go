@@ -8,11 +8,11 @@ import (
 
 type HandleFunc func(c *Context) (reject error)
 
-func (serve *Serve) HandleFunc(method Method,path string,  action HandleFunc) {
+func (serve *Router) HandleFunc(method Method,path string,  action HandleFunc) {
 	coreHandleFunc(serve, serve.router, method, path, action)
 }
 
-func coreHandleFunc(serve *Serve, router *mux.Router, method Method,path string,  action HandleFunc) {
+func coreHandleFunc(serve *Router, router *mux.Router, method Method,path string,  action HandleFunc) {
 	router.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		c := NewContext(w, r, serve)
 		defer func() {

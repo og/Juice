@@ -40,14 +40,14 @@ func (resp *Response) ExpectJSON(statusCode int, reply interface{}) {
 
 }
 type Test struct {
-	serve *juice.Serve
+	router *juice.Router
 	t *testing.T
 	jar *cookiejar.Jar
 }
-func NewTest(t *testing.T, serve *juice.Serve) Test {
+func NewTest(t *testing.T, router *juice.Router) Test {
 	jar, err := cookiejar.New(nil) ; ge.Check(err)
 	return Test{
-		serve: serve,
+		router: router,
 		t: t,
 		jar: jar,
 	}
@@ -64,9 +64,8 @@ func (test *Test) Request(r *http.Request) (resp *Response)  {
 			r.AddCookie(cookie)
 		}
 	}
-	router := test.serve.HttpTestRouter()
 	recorder := httptest.NewRecorder()
-	router.ServeHTTP(recorder, r)
+	test.router.ServeHTTP(recorder, r)
 	httpResponse :=  recorder.Result()
 	/* response set cookie */ {
 		test.jar.SetCookies(r.URL, httpResponse.Cookies())

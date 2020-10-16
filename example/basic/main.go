@@ -7,6 +7,7 @@ import (
 	vd "github.com/og/juice/validator"
 	ge "github.com/og/x/error"
 	"log"
+	"net/http"
 )
 
 var sessionStore *sqlitestore.SqliteStore
@@ -44,7 +45,7 @@ type ReqUserDetail struct {
 	ID string `param:"id"`
 }
 func main() {
-	serve := juice.NewServe(juice.ServeOption{
+	router := juice.NewRouter(juice.RouterOption{
 		OnCatchError: func(c *juice.Context, errInterface interface{}) error {
 			log.Print(errInterface)
 			switch errInterface.(type) {
@@ -67,8 +68,8 @@ func main() {
 		log.Print("Response:", c.R.Method, " ", c.R.URL)
 		return nil
 	}
-	serve.Use(requestLogMiddleware)
-	serve.HandleFunc(juice.GET, "/", func(c *juice.Context) (reject error) {
+	router.Use(requestLogMiddleware)
+	router.HandleFunc(juice.GET, "/", func(c *juice.Context) (reject error) {
 		/* 绑定请求 */{
 			req := ReqHome{}
 			reject = c.BindRequest(&req) ;if reject != nil {return}
@@ -87,14 +88,14 @@ func main() {
 			return c.Bytes([]byte("time:" + timeStr))
 		}
 	})
-	serve.HandleFunc(juice.GET,"/user/{id}", func(c *juice.Context) (reject error) {
+	router.HandleFunc(juice.GET,"/user/{id}", func(c *juice.Context) (reject error) {
 		req := ReqUserDetail{}
 		reject = c.BindRequest(&req) ; if reject != nil {return}
 		id, reject := c.Param("id") ; if reject != nil {return}
 		return c.Bytes([]byte("BindRequestID:" + req.ID + " ParamID:" + id))
 	})
 	{
-		g := serve.Group()
+		g := router.Group()
 		g.Use(func(c *juice.Context, next juice.Next) error {
 			token := c.R.Header.Get("token")
 			if token != "abc" {
@@ -106,6 +107,12 @@ func main() {
 			return c.Bytes([]byte("some data"))
 		})
 	}
-	err := serve.Listen(":1219"); if err != nil {panic(err)}
-
+	serve := http.Server{
+		Addr: ":1219",
+		Handler: router,
+	}
+	err := serve.ListenAndServe()
+	if err != nil {
+		panic(err)
+	}
 }

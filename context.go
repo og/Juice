@@ -10,15 +10,15 @@ import (
 type Context struct {
 	W http.ResponseWriter
 	R *http.Request
-	serve *Serve
+	router *Router
 	resolvedParam bool
 	param map[string]string
 }
-func NewContext (w http.ResponseWriter, r *http.Request, serve *Serve) *Context {
+func NewContext (w http.ResponseWriter, r *http.Request, router *Router) *Context {
 	return &Context{
 		W: w,
 		R: r,
-		serve: serve,
+		router: router,
 	}
 }
 func (c *Context) Param(name string) (param string, err error) {
@@ -54,7 +54,7 @@ func (c *Context) BindRequest(ptr interface{}) error {
 }
 
 func (c *Context) CheckError(errInterface interface{}) {
-	err := c.serve.OnCatchError(c, errInterface)
+	err := c.router.OnCatchError(c, errInterface)
 	if err != nil {
 		panic(err)
 	}

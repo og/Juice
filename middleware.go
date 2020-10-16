@@ -7,10 +7,10 @@ import (
 
 type Next func() error
 type Middleware func(c *Context, next Next) (reject error)
-func (serve *Serve) Use(middleware Middleware) {
+func (serve *Router) Use(middleware Middleware) {
 	middlewareUse(serve, serve.router, middleware)
 }
-func middlewareUse(serve *Serve, router *mux.Router, middleware Middleware) {
+func middlewareUse(serve *Router, router *mux.Router, middleware Middleware) {
 	router.Use(func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			c := NewContext(w,r, serve)
