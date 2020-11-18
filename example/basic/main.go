@@ -4,7 +4,7 @@ import (
 	"context"
 	"github.com/michaeljs1990/sqlitestore"
 	ogjson "github.com/og/json"
-	"github.com/og/juice"
+	jhttpttp "github.com/og/juice/http"
 	vd "github.com/og/juice/validator"
 	ge "github.com/og/x/error"
 	"log"
@@ -50,8 +50,8 @@ type ReqUserDetail struct {
 	ID string `param:"id"`
 }
 func main() {
-	router := juice.NewRouter(juice.RouterOption{
-		OnCatchError: func(c *juice.Context, errInterface interface{}) error {
+	router := jhttpttp.NewRouter(jhttpttp.RouterOption{
+		OnCatchError: func(c *jhttpttp.Context, errInterface interface{}) error {
 			log.Print(errInterface)
 			switch errInterface.(type) {
 			case error:
@@ -67,14 +67,14 @@ func main() {
 			}
 		},
 	})
-	requestLogMiddleware := func(c *juice.Context, next juice.Next) error {
+	requestLogMiddleware := func(c *jhttpttp.Context, next jhttpttp.Next) error {
 		log.Print("Request:", c.R.Method, " ", c.R.URL)
 		err := next() ; if err != nil {panic(err)}
 		log.Print("Response:", c.R.Method, " ", c.R.URL)
 		return nil
 	}
 	router.Use(requestLogMiddleware)
-	router.HandleFunc(juice.GET, "/", func(c *juice.Context) (reject error) {
+	router.HandleFunc(jhttpttp.GET, "/", func(c *jhttpttp.Context) (reject error) {
 		time.Sleep(6*time.Second)
 		/* 绑定请求 */{
 			req := ReqHome{}
@@ -94,7 +94,7 @@ func main() {
 			return c.Bytes([]byte("time:" + timeStr))
 		}
 	})
-	router.HandleFunc(juice.GET,"/user/{id}", func(c *juice.Context) (reject error) {
+	router.HandleFunc(jhttpttp.GET,"/user/{id}", func(c *jhttpttp.Context) (reject error) {
 		req := ReqUserDetail{}
 		reject = c.BindRequest(&req) ; if reject != nil {return}
 		id, reject := c.Param("id") ; if reject != nil {return}
@@ -102,14 +102,14 @@ func main() {
 	})
 	{
 		g := router.Group()
-		g.Use(func(c *juice.Context, next juice.Next) error {
+		g.Use(func(c *jhttpttp.Context, next jhttpttp.Next) error {
 			token := c.R.Header.Get("token")
 			if token != "abc" {
 				return c.Bytes([]byte("token 错误"))
 			}
 			return next()
 		})
-		g.HandleFunc(juice.GET, "/user", func(c *juice.Context) error {
+		g.HandleFunc(jhttpttp.GET, "/user", func(c *jhttpttp.Context) error {
 			return c.Bytes([]byte("some data"))
 		})
 	}

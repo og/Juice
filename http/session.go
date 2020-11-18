@@ -1,4 +1,4 @@
-package juice
+package jhttp
 
 import (
 	"github.com/gorilla/sessions"

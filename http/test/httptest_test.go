@@ -1,11 +1,11 @@
-package juicetest_test
+package jhttptest_test
 
 import (
 	"fmt"
 	"github.com/michaeljs1990/sqlitestore"
 	ogjson "github.com/og/json"
-	"github.com/og/juice"
-	juicetest "github.com/og/juice/test"
+	jhttp "github.com/og/juice/http"
+	jhttptest "github.com/og/juice/http/test"
 	gconv "github.com/og/x/conv"
 	gtest "github.com/og/x/test"
 	"log"
@@ -53,49 +53,49 @@ func setCookieCount(w http.ResponseWriter, value int) {
 		Value: gconv.IntString(value),
 	})
 }
-func NewRouter() *juice.Router {
-	router := juice.NewRouter(juice.RouterOption{
-		OnCatchError: func(c *juice.Context, errInterface interface{}) error {
+func NewRouter() *jhttp.Router {
+	router := jhttp.NewRouter(jhttp.RouterOption{
+		OnCatchError: func(c *jhttp.Context, errInterface interface{}) error {
 			log.Print(errInterface)
 			return nil
 		},
 	})
-	router.HandleFunc(juice.POST, "/", func(c *juice.Context) (reject error) {
+	router.HandleFunc(jhttp.POST, "/", func(c *jhttp.Context) (reject error) {
 		req := ReqHome{}
 		reject = c.BindRequest(&req) ; if reject != nil {return}
 		reply := ReplyHome{}
 		reply.IDNameAge  = req.ID + ":" + req.Name + ":" + gconv.IntString(req.Age)
 		return c.Bytes(ogjson.Bytes(reply))
 	})
-	router.HandleFunc(juice.POST, "/cookie", func(c *juice.Context) (reject error) {
+	router.HandleFunc(jhttp.POST, "/cookie", func(c *jhttp.Context) (reject error) {
 		count , reject := getCookieCount(c.R) ; if reject != nil {return}
 		newCount := count + 1
 		setCookieCount(c.W, newCount)
 		return c.Bytes([]byte("request:" + gconv.IntString(count) + " response:"+ gconv.IntString(newCount)))
 	})
-	router.HandleFunc(juice.GET, "/session_set", func(c *juice.Context) (reject error) {
+	router.HandleFunc(jhttp.GET, "/session_set", func(c *jhttp.Context) (reject error) {
 		return c.Session("juice_session", sessionStore).SetString("userID", "a")
 	})
-	router.HandleFunc(juice.GET, "/session_get", func(c *juice.Context) (reject error) {
+	router.HandleFunc(jhttp.GET, "/session_get", func(c *jhttp.Context) (reject error) {
 		userID, hasUserID, reject := c.Session("juice_session", sessionStore).GetString("userID") ; if reject != nil {return}
 		return c.Bytes([]byte(fmt.Sprintf("%s,%v",userID,hasUserID)))
 	})
-	router.HandleFunc(juice.GET, "/session_del", func(c *juice.Context) (reject error) {
+	router.HandleFunc(jhttp.GET, "/session_del", func(c *jhttp.Context) (reject error) {
 		return c.Session("juice_session", sessionStore).DelString("userID")
 	})
 	return router
 }
 func TestTest(t *testing.T) {
 	as := gtest.NewAS(t)
-	jtest := juicetest.NewTest(t, NewRouter())
-	resp := jtest.RequestJSON(juice.POST, "/", ReqHome{
+	jtest := jhttptest.NewTest(t, NewRouter())
+	resp := jtest.RequestJSON(jhttp.POST, "/", ReqHome{
 		ID:   "a",
 		Name: "b",
 		Age:  3,
 	})
 	resp.ExpectJSON(200, ReplyHome{IDNameAge: "a:b:3",})
 	{
-		resp := jtest.RequestJSON(juice.POST, "/", ReqHome{
+		resp := jtest.RequestJSON(jhttp.POST, "/", ReqHome{
 			ID: "a",
 			Name: "b",
 			Age: 3,
@@ -112,32 +112,32 @@ func TestTest(t *testing.T) {
 	}
 	{
 		jtest.RequestJSON(
-			juice.POST, "/cookie", nil,
+			jhttp.POST, "/cookie", nil,
 		).ExpectString(200, "request:0 response:1")
 	}
 	{
 		jtest.RequestJSON(
-			juice.POST, "/cookie", nil,
+			jhttp.POST, "/cookie", nil,
 		).ExpectString(200, "request:1 response:2")
 	}
 	{
-		resp := jtest.RequestJSON(juice.GET, "/session_get", nil)
+		resp := jtest.RequestJSON(jhttp.GET, "/session_get", nil)
 		resp.ExpectString(200, ",false")
 	}
 	{
-		resp := jtest.RequestJSON(juice.GET, "/session_set", nil)
+		resp := jtest.RequestJSON(jhttp.GET, "/session_set", nil)
 		resp.ExpectString(200,"")
 	}
 	{
-		resp := jtest.RequestJSON(juice.GET, "/session_get", nil)
+		resp := jtest.RequestJSON(jhttp.GET, "/session_get", nil)
 		resp.ExpectString(200, "a,true")
 	}
 	{
-		resp := jtest.RequestJSON(juice.GET, "/session_del", nil)
+		resp := jtest.RequestJSON(jhttp.GET, "/session_del", nil)
 		resp.ExpectString(200,"")
 	}
 	{
-		resp := jtest.RequestJSON(juice.GET, "/session_get", nil)
+		resp := jtest.RequestJSON(jhttp.GET, "/session_get", nil)
 		resp.ExpectString(200, ",false")
 	}
 }

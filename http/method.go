@@ -1,4 +1,4 @@
-package juice
+package jhttp
 
 
 type Method string

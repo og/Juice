@@ -3,7 +3,7 @@ vendor
 example/news
 .DS_Store
 example/news_demo
-test/session_sqllite
-test/test/session_sqllite
+http/test/session_sqllite
+http/test/test/session_sqllite
 example/basic/test/session_sqllite
 example/basic/main

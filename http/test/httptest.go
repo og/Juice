@@ -1,9 +1,9 @@
-package juicetest
+package jhttptest
 
 import (
 	"bytes"
 	ogjson "github.com/og/json"
-	"github.com/og/juice"
+	jhttp "github.com/og/juice/http"
 	ge "github.com/og/x/error"
 	gtest "github.com/og/x/test"
 	"io/ioutil"
@@ -12,7 +12,6 @@ import (
 	"net/http/httptest"
 	"testing"
 )
-
 
 type Response struct {
 	t *testing.T
@@ -40,11 +39,11 @@ func (resp *Response) ExpectJSON(statusCode int, reply interface{}) {
 
 }
 type Test struct {
-	router *juice.Router
+	router *jhttp.Router
 	t *testing.T
 	jar *cookiejar.Jar
 }
-func NewTest(t *testing.T, router *juice.Router) Test {
+func NewTest(t *testing.T, router *jhttp.Router) Test {
 	jar, err := cookiejar.New(nil) ; ge.Check(err)
 	return Test{
 		router: router,
@@ -52,7 +51,7 @@ func NewTest(t *testing.T, router *juice.Router) Test {
 		jar: jar,
 	}
 }
-func (test Test) RequestJSON(method juice.Method, path string, jsonValue interface{}) (resp *Response)  {
+func (test Test) RequestJSON(method jhttp.Method, path string, jsonValue interface{}) (resp *Response)  {
 	request := NewRequestJSON(method, path, jsonValue)
 	return test.Request(request)
 }
@@ -78,7 +77,7 @@ func (test *Test) Request(r *http.Request) (resp *Response)  {
 	}
 }
 
-func NewRequestJSON(method juice.Method, path string, jsonValue interface{}) *http.Request {
+func NewRequestJSON(method jhttp.Method, path string, jsonValue interface{}) *http.Request {
 	request := httptest.NewRequest(method.String(), path, bytes.NewReader(ogjson.Bytes(jsonValue)))
 	request.Header.Set("Content-Type", "application/json")
 	return request
