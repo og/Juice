@@ -1,6 +1,7 @@
 package jhttp
 
 import (
+	"bytes"
 	"context"
 	"github.com/gorilla/mux"
 	ogjson "github.com/og/json"
@@ -45,6 +46,12 @@ func (c *Context) Bytes(b []byte) error {
 		if err != nil {panic(err)}
 	}
 	return nil
+}
+func (c *Context) Render(render func(buffer *bytes.Buffer)) error {
+	buffer := bytes.NewBuffer(nil)
+	render(buffer)
+	c.W.Header().Set("Content-Type", "text/html; charset=UTF-8")
+	return c.Bytes(buffer.Bytes())
 }
 func (c *Context) JSON(v interface{}) error {
 	jsonb, err := ogjson.BytesWithErr(v)
