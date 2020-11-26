@@ -125,7 +125,7 @@ func main() {
 		}
 	}()
 	exit := make(chan os.Signal)
-	signal.Notify(exit, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(exit, syscall.SIGQUIT, syscall.SIGINT, syscall.SIGTERM)
 	<-exit
 	log.Print("Shuting down server...")
 	if err := serve.Shutdown(context.Background()); err != nil {

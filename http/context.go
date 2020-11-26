@@ -1,6 +1,7 @@
 package jhttp
 
 import (
+	"context"
 	"github.com/gorilla/mux"
 	ogjson "github.com/og/json"
 	"github.com/pkg/errors"
@@ -20,6 +21,9 @@ func NewContext (w http.ResponseWriter, r *http.Request, router *Router) *Contex
 		R: r,
 		router: router,
 	}
+}
+func (c *Context) Context() context.Context {
+	return c.R.Context()
 }
 func (c *Context) Param(name string) (param string, err error) {
 	data := map[string]string{}
